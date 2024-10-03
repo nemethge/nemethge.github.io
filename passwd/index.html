@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelszó Generátor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="panda">
+            <img src="https://img.freepik.com/free-photo/top-view-lock-with-password-keyboard_23-2148578100.jpg?t=st=1726131501~exp=1726135101~hmac=a7b7d35f42b9c4f66cdcefa9522d823f24de6d7a16ef3357b1a7af2e891d065c&w=1380" alt="Panda Image">
+        </div>
+        <input type="text" id="password" placeholder="password placeholder" readonly>
+        <br>
+        <button onclick="generateSimplePassword()">Simple</button>
+        <button onclick="generateStrongPassword()">Strong</button>
+        <button onclick="copyPassword()">Másolás</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
