@@ -77,7 +77,3 @@ button {
 button:disabled {
     background-color: #cccccc;
 }
-
-.hidden {
-    display: none;
-}

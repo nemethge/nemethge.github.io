@@ -1,4 +1,4 @@
-// Véletlenszerű jelszavak generálása random és urandom használatával
+// Generate random passwords using random and urandom
 function getRandomChar(characters) {
     return characters[Math.floor(Math.random() * characters.length)];
 }
@@ -24,7 +24,7 @@ function generateStrongPassword() {
 function copyPassword() {
     const password = document.getElementById('password');
     password.select();
-    password.setSelectionRange(0, 99999); // Mobil támogatás
+    password.setSelectionRange(0, 99999); // Mobile support
     document.execCommand("copy");
-    alert("Jelszó másolva a vágólapra: " + password.value);
+    alert("Password copied to clipboard: " + password.value);
 }
