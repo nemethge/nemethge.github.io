@@ -48,14 +48,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('start-stopwatch').addEventListener('click', function() {
+        const startStopwatchButton = document.getElementById('start-stopwatch');
         if (!stopwatchRunning) {
             stopwatchRunning = true;
             stopwatchStartTime = Date.now() - stopwatchElapsedTime;
             stopwatchRequestId = requestAnimationFrame(updateStopwatch);
+            startStopwatchButton.textContent = 'Pause';
         } else {
             stopwatchRunning = false;
             cancelAnimationFrame(stopwatchRequestId);
             stopwatchElapsedTime = Date.now() - stopwatchStartTime;
+            startStopwatchButton.textContent = 'Start';
         }
     });
 
@@ -64,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelAnimationFrame(stopwatchRequestId);
         stopwatchElapsedTime = 0;
         updateStopwatchDisplay(0);
+        document.getElementById('start-stopwatch').textContent = 'Start';
         document.title = 'Timer & Stopwatch';
     });
 
