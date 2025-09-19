@@ -3,135 +3,808 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Game</title>
+    <title>Wizard of Wor - Production Build</title>
     <style>
-        canvas {
-            border: 1px solid black;
-            display: block;
-            margin: 0 auto;
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0d0d0d;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-transform: uppercase;
         }
+        #game-wrapper {
+            position: relative;
+            width: 800px;
+            height: 680px;
+        }
+        canvas {
+            background-color: #1a1a1a;
+            border: 4px solid #444;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+            position: absolute;
+            top: 40px;
+            left: 0;
+            display: none;
+        }
+        .screen {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            box-sizing: border-box;
+            background-color: rgba(26, 26, 26, 0.95);
+            border: 4px solid #444;
+            box-shadow: 0 0 30px rgba(255, 0, 100, 0.4);
+            text-align: center;
+            z-index: 10;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #ff4136;
+            text-shadow: 3px 3px 0 #900;
+            margin-bottom: 30px;
+        }
+        .screen p { font-size: 1.2em; color: #00ffff; }
+        .screen button {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5em;
+            padding: 20px;
+            margin-top: 20px;
+            width: 350px;
+            text-align: center;
+            border: 2px solid;
+            color: #000;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .screen button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.5);
+        }
+        #start-screen button { background: #4CAF50; border-color: #8cff90; }
+        #game-over-screen button { background: #ff4136; border-color: #ff8080; }
+        #pause-screen button { background: #0074D9; border-color: #7FDBFF; margin-top:10px; padding: 15px; }
+        #ui-container {
+            width: 800px;
+            display: none;
+            justify-content: space-between;
+            font-size: 1.5em;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #final-score { font-size: 1.8em; color: #00ffff; }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
 
-        const gridSize = 20;
-        const tileCount = 20;
-        let snake = [{x: 10, y: 10}];
-        let food = {x: 15, y: 15};
-        let dx = 0;
-        let dy = 0;
-        let score = 0;
+<div id="game-wrapper">
+    <div id="ui-container">
+        <span id="score">SCORE: 0</span>
+        <span id="level">LEVEL: 1</span>
+        <span id="lives">LIVES: </span>
+        <span id="timer" style="display: none;">TIME: 15</span>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="start-screen" class="screen">
+        <h1>WIZARD OF WOR</h1>
+        <p>ARROW KEYS TO MOVE. SPACE TO SHOOT.</p>
+        <p>CLEAR THE DUNGEON! FIND SECRETS!</p>
+        <button id="startGameBtn">Start Game</button>
+    </div>
+    
+    <div id="game-over-screen" class="screen" style="display: none;">
+        <h1>GAME OVER</h1>
+        <p id="final-score"></p>
+        <button id="playAgainBtn">Play Again</button>
+    </div>
+    
+    <div id="pause-screen" class="screen" style="display: none;">
+        <h1>PAUSED</h1>
+        <button id="resumeBtn">Resume</button>
+        <button id="exitBtn">Exit to Menu</button>
+    </div>
+</div>
 
-        document.addEventListener('keydown', changeDirection);
+<script>
+// This script implements the production architecture described in the markdown file.
+document.addEventListener('DOMContentLoaded', () => {
 
-        function changeDirection(event) {
-            const LEFT_KEY = 37;
-            const RIGHT_KEY = 39;
-            const UP_KEY = 38;
-            const DOWN_KEY = 40;
+// --- DOM Elements ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const screens = {
+    start: document.getElementById('start-screen'),
+    gameOver: document.getElementById('game-over-screen'),
+    pause: document.getElementById('pause-screen')
+};
+const ui = {
+    container: document.getElementById('ui-container'),
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    level: document.getElementById('level'),
+    finalScore: document.getElementById('final-score'),
+    timer: document.getElementById('timer')
+};
+const buttons = {
+    start: document.getElementById('startGameBtn'),
+    playAgain: document.getElementById('playAgainBtn'),
+    resume: document.getElementById('resumeBtn'),
+    exit: document.getElementById('exitBtn')
+};
 
-            const keyPressed = event.keyCode;
-            const goingUp = dy === -1;
-            const goingDown = dy === 1;
-            const goingRight = dx === 1;
-            const goingLeft = dx === -1;
+// --- Core Architecture: Constants & Loop ---
+const TILE_SIZE = 40;
+const COLS = 20;
+const ROWS = 15;
+canvas.width = COLS * TILE_SIZE;
+canvas.height = ROWS * TILE_SIZE;
 
-            if (keyPressed === LEFT_KEY && !goingRight) {
-                dx = -1;
-                dy = 0;
-            }
-            if (keyPressed === UP_KEY && !goingDown) {
-                dx = 0;
-                dy = -1;
-            }
-            if (keyPressed === RIGHT_KEY && !goingLeft) {
-                dx = 1;
-                dy = 0;
-            }
-            if (keyPressed === DOWN_KEY && !goingUp) {
-                dx = 0;
-                dy = 1;
+const TICK = 1000 / 60;
+let prevTime = 0;
+let accumulator = 0;
+let gameRunning = false;
+
+// --- Core Architecture: State (ECS Light) ---
+let state = {};
+
+// --- Core Architecture: Input Handling ---
+const input = { up:false, down:false, left:false, right:false, shoot:false, pause:false };
+
+// --- Core Architecture: RNG ---
+class RNG {
+  constructor(seed) {
+      this.seed = seed;
+  }
+  next() { this.seed = (1664525 * this.seed + 1013904223) >>> 0; return this.seed; }
+  float() { return this.next() / 0xFFFFFFFF; }
+  int(max) { return this.next() % max; }
+}
+
+// --- Core Architecture: Audio ---
+let audioCtx;
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+// --- Game Logic ---
+function initState(seed) {
+    const rng = new RNG(seed);
+    state = {
+        seed, rng, tick: 0, score: 0, lives: 3, level: 1,
+        status: 'playing', // playing, paused, gameover, level_clear
+        levelClearTimer: 0,
+        isBonusLevel: false, bonusTime: 0,
+        
+        entities: [],
+        player: { id: 0, dir: 'right', invincibleTimer: 0, hasKey: false, speedBuff: 0, rapidBuff: 0 },
+        
+        bullets: [],
+        particles: [],
+        powerups: [],
+        
+        secretKey: { spawned: false, x: 0, y: 0 },
+        secretExit: { active: false, x: (COLS-1.5)*TILE_SIZE, y: (ROWS-1.5)*TILE_SIZE },
+        
+        lastShootTime: 0,
+    };
+    state.maze = generateMaze(state.rng);
+    spawnPlayer();
+    spawnMonsters(state.level);
+}
+
+// --- Maze Generation ---
+function generateMaze(rng) {
+    let grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(1));
+    function carve(cx, cy) {
+        const directions = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => rng.float() - 0.5);
+        for (let [dx, dy] of directions) {
+            const nx = cx + dx, ny = cy + dy;
+            if (ny > 0 && ny < ROWS - 1 && nx > 0 && nx < COLS - 1 && grid[ny][nx] === 1) {
+                grid[ny][nx] = 0; grid[cy + dy / 2][cx + dx / 2] = 0; carve(nx, ny);
             }
         }
+    }
+    grid[1][1] = 0; carve(1, 1);
+    
+    let wallX, wallY;
+    do {
+        wallX = rng.int(COLS - 2) + 1; wallY = rng.int(ROWS - 2) + 1;
+    } while (grid[wallY][wallX] !== 1);
+    grid[wallY][wallX] = 2; // Destructible
+    
+    return grid;
+}
 
-        function drawGame() {
-            clearCanvas();
-            moveSnake();
-            drawSnake();
-            drawFood();
-            drawScore();
+// --- Entity & Spawning ---
+function spawnPlayer() {
+    state.entities[0] = {
+        id: 0, type: 'player',
+        x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5,
+        size: TILE_SIZE * 0.8,
+        speed: 4
+    };
+}
 
-            if (gameOver()) {
-                alert('Game Over! Your score: ' + score);
-                resetGame();
+function spawnMonsters(level) {
+    const monsterCount = 3 + Math.floor(level * 0.8);
+    for (let i = 0; i < monsterCount; i++) {
+        let x, y;
+        do {
+            x = state.rng.int(COLS - 2) + 1;
+            y = state.rng.int(ROWS - 2) + 1;
+        } while (state.maze[y][x] !== 0);
+        
+        let type = 'worrior';
+        if (level > 2 && state.rng.float() > 0.5) type = 'burwor';
+        if (level > 4 && state.rng.float() > 0.3) type = 'garwor';
+        
+        const id = state.entities.length;
+        state.entities[id] = {
+            id, type,
+            x: x * TILE_SIZE + TILE_SIZE / 2, y: y * TILE_SIZE + TILE_SIZE / 2,
+            size: TILE_SIZE * 0.8,
+            dir: ['up', 'down', 'left', 'right'][state.rng.int(4)],
+            speed: 1.5 + (level * 0.1),
+            teleportCd: 180,
+        };
+    }
+    if (level % 4 === 0) {
+        const id = state.entities.length;
+        state.entities[id] = {
+            id, type: 'wizard',
+            x: canvas.width / 2, y: canvas.height / 2,
+            size: TILE_SIZE * 0.8,
+            speed: 0,
+            health: 3 + level,
+            teleportCd: 120, shootCd: 90
+        };
+    }
+}
+
+// --- Main Loop Functions ---
+function update(dt) {
+    if (state.status === 'playing') {
+        state.tick++;
+        handlePlayerInput();
+        updateEntities();
+        updateBullets();
+        updateParticles();
+        checkCollisions();
+
+        if (getMonsters().length === 0 && !state.isBonusLevel) {
+            state.status = 'level_clear';
+            state.levelClearTimer = 120; // 2 seconds
+        }
+    } else if (state.status === 'level_clear') {
+        state.levelClearTimer--;
+        if (state.levelClearTimer <= 0) {
+            nextLevel();
+        }
+    }
+}
+
+function draw(alpha) {
+    if (state.status === 'paused') return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    drawMaze();
+    if (state.secretKey.spawned && !state.player.hasKey) drawSprite('key', state.secretKey.x, state.secretKey.y, TILE_SIZE);
+    if (state.secretExit.active) drawSprite('exit', state.secretExit.x, state.secretExit.y, TILE_SIZE);
+    
+    state.powerups.forEach(p => drawSprite(p.type, p.x, p.y, 30));
+    state.particles.forEach(p => drawParticle(p));
+    state.bullets.forEach(b => drawBullet(b));
+    state.entities.forEach(e => drawEntity(e));
+    
+    // NEW: Draw level clear screen
+    if (state.status === 'level_clear') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00ffff';
+        ctx.font = '48px "Courier New"';
+        ctx.textAlign = 'center';
+        ctx.fillText(`LEVEL ${state.level} CLEAR`, canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = '24px "Courier New"';
+        ctx.fillText('Get ready for the next wave!', canvas.width / 2, canvas.height / 2 + 30);
+    }
+}
+
+function gameLoop(now) {
+    if (gameRunning) {
+        accumulator += Math.min(250, now - prevTime);
+        prevTime = now;
+        while (accumulator >= TICK) {
+            update(TICK);
+            accumulator -= TICK;
+        }
+        draw(accumulator / TICK);
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+// --- Update Sub-functions ---
+function handlePlayerInput() {
+    const player = state.entities[0];
+    let nextX = player.x, nextY = player.y;
+    const speed = player.speed * (state.player.speedBuff > 0 ? 1.5 : 1);
+
+    if (input.up) { nextY -= speed; state.player.dir = 'up'; }
+    else if (input.down) { nextY += speed; state.player.dir = 'down'; }
+    else if (input.left) { nextX -= speed; state.player.dir = 'left'; }
+    else if (input.right) { nextX += speed; state.player.dir = 'right'; }
+
+    if (isWalkable(nextX, nextY, player.size)) {
+        player.x = nextX; player.y = nextY;
+    }
+
+    if (input.shoot) {
+        const cooldown = state.player.rapidBuff > 0 ? 100 : 250;
+        if (performance.now() - state.lastShootTime > cooldown) {
+            shoot(player, state.player.dir);
+            state.lastShootTime = performance.now();
+        }
+    }
+}
+
+function updateEntities() {
+    if (state.player.invincibleTimer > 0) state.player.invincibleTimer--;
+    if (state.player.speedBuff > 0) state.player.speedBuff--;
+    if (state.player.rapidBuff > 0) state.player.rapidBuff--;
+
+    state.entities.forEach(e => {
+        if (!e || e.type === 'player') return;
+
+        if (e.type === 'garwor' || e.type === 'wizard') {
+            e.teleportCd--;
+            if (e.teleportCd <= 0) {
+                let x,y;
+                do { x = state.rng.int(COLS-2)+1; y=state.rng.int(ROWS-2)+1; } while (state.maze[y][x] !== 0);
+                e.x = x * TILE_SIZE + TILE_SIZE/2;
+                e.y = y * TILE_SIZE + TILE_SIZE/2;
+                e.teleportCd = 120 + state.rng.int(60);
+            }
+        } else { // Wander
+            let nextX = e.x, nextY = e.y;
+            if (e.dir === 'up') nextY -= e.speed; else if (e.dir === 'down') nextY += e.speed;
+            else if (e.dir === 'left') nextX -= e.speed; else if (e.dir === 'right') nextX += e.speed;
+            if (isWalkable(nextX, nextY, e.size)) {
+                e.x = nextX; e.y = nextY;
             } else {
-                setTimeout(drawGame, 100);
+                e.dir = ['up', 'down', 'left', 'right'][state.rng.int(4)];
             }
         }
-
-        function clearCanvas() {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        function moveSnake() {
-            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
-            snake.unshift(head);
-
-            if (head.x === food.x && head.y === food.y) {
-                score++;
-                generateFood();
-            } else {
-                snake.pop();
+        if (e.type === 'wizard') {
+            e.shootCd--;
+            if (e.shootCd <= 0) {
+                const p = state.entities[0];
+                const dx = p.x - e.x, dy = p.y - e.y;
+                const dist = Math.hypot(dx, dy);
+                shoot(e, {vx: (dx/dist)*6, vy: (dy/dist)*6});
+                e.shootCd = 90 + state.rng.int(30);
             }
         }
+    });
+}
 
-        function drawSnake() {
-            ctx.fillStyle = 'green';
-            snake.forEach(segment => {
-                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
-            });
+function updateBullets() {
+    for (let i = state.bullets.length-1; i >= 0; i--) {
+        const b = state.bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+        b.ttl--;
+        
+        const gridX = Math.floor(b.x / TILE_SIZE), gridY = Math.floor(b.y / TILE_SIZE);
+        if (b.ttl <= 0 || !state.maze[gridY] || state.maze[gridY][gridX] === 1) {
+            state.bullets.splice(i, 1);
+        } else if (state.maze[gridY][gridX] === 2) {
+            state.maze[gridY][gridX] = 0;
+            if (!state.secretKey.spawned) {
+                state.secretKey.spawned = true;
+                state.secretKey.x = gridX * TILE_SIZE + TILE_SIZE/2;
+                state.secretKey.y = gridY * TILE_SIZE + TILE_SIZE/2;
+            }
+            createExplosion(b.x, b.y, '#ccc');
+            state.bullets.splice(i, 1);
         }
+    }
+}
 
-        function drawFood() {
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+function updateParticles() {
+    for(let i = state.particles.length-1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx; p.y += p.vy; p.alpha -= 0.025;
+        if (p.alpha <= 0) state.particles.splice(i, 1);
+    }
+}
+
+function checkCollisions() {
+    const player = state.entities[0];
+    
+    // Bullets vs Entities
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+        const b = state.bullets[i];
+        for (let j = state.entities.length - 1; j >= 0; j--) {
+            const e = state.entities[j];
+            if (!e || b.ownerId === e.id) continue;
+
+            // CORE LOGIC FIX: Replaced the faulty logic with a clear check for opposing types.
+            const isPlayerBullet = b.ownerType === 'player';
+            const isPlayerEntity = e.type === 'player';
+
+            if ((isPlayerBullet && !isPlayerEntity) || (!isPlayerBullet && isPlayerEntity)) {
+                if (Math.hypot(b.x - e.x, b.y - e.y) < (e.size / 2 + 8)) {
+                    if (isPlayerEntity) { // An enemy bullet hit the player
+                        if (state.player.invincibleTimer <= 0) playerHit();
+                    } else { // A player bullet hit an enemy
+                        if (e.health) e.health--; else e.health = 0;
+                        if (e.health <= 0) killMonster(j);
+                    }
+                    state.bullets.splice(i, 1);
+                    break; 
+                }
+            }
         }
+    }
+    
+    // Player vs Monsters
+    if (state.player.invincibleTimer <= 0) {
+        getMonsters().forEach(m => {
+            if (Math.hypot(player.x - m.x, player.y - m.y) < (player.size/2 + m.size/2)) {
+                playerHit();
+            }
+        });
+    }
 
-        function drawScore() {
-            ctx.fillStyle = 'black';
-            ctx.font = '20px Arial';
-            ctx.fillText('Score: ' + score, 10, 30);
+    // Player vs Powerups
+    for (let i = state.powerups.length-1; i >= 0; i--) {
+        const p = state.powerups[i];
+        if (Math.hypot(player.x - p.x, player.y - p.y) < player.size) {
+            if (p.type === 'speed') state.player.speedBuff = 300;
+            if (p.type === 'rapid') state.player.rapidBuff = 300;
+            playSound('powerup');
+            state.powerups.splice(i, 1);
         }
+    }
 
-        function generateFood() {
-            food.x = Math.floor(Math.random() * tileCount);
-            food.y = Math.floor(Math.random() * tileCount);
+    // Player vs Secrets
+    if (state.secretKey.spawned && !state.player.hasKey && Math.hypot(player.x - state.secretKey.x, player.y - state.secretKey.y) < player.size) {
+        state.player.hasKey = true; state.secretExit.active = true;
+    }
+    if (state.secretExit.active && state.player.hasKey && Math.hypot(player.x - state.secretExit.x, player.y - state.secretExit.y) < player.size) {
+        //enterBonusLevel();
+        nextLevel(); // Placeholder
+    }
+}
+
+// --- Drawing Sub-functions & Graphics ---
+const spriteCanvas = document.createElement('canvas');
+const sCtx = spriteCanvas.getContext('2d');
+spriteCanvas.width = 256; spriteCanvas.height = 128;
+
+function drawPixel(x, y, color) {
+    sCtx.fillStyle = color;
+    sCtx.fillRect(x, y, 1, 1);
+}
+
+// GRAPHICS OVERHAUL: More detailed, multi-color pixel art sprites
+function drawAllSprites() {
+    sCtx.clearRect(0,0,spriteCanvas.width, spriteCanvas.height);
+    const PIXEL = 4; // Draw larger "pixels"
+    function draw(x, y, color) { sCtx.fillStyle = color; sCtx.fillRect(x*PIXEL, y*PIXEL, PIXEL, PIXEL); }
+
+    // Player (Blue Robe)
+    const pOffX = 1, pOffY = 1;
+    const playerColors = { robe: '#39CCCC', skin: '#f0d0b0', hat: '#0074D9', staff: '#964B00'};
+    for(let i = 0; i < 4; i++) { // 4 directions
+        let offX = pOffX + i * 10;
+        // Robe
+        draw(offX+2, pOffY+3, playerColors.robe); draw(offX+3, pOffY+3, playerColors.robe); draw(offX+4, pOffY+3, playerColors.robe); draw(offX+5, pOffY+3, playerColors.robe);
+        draw(offX+1, pOffY+4, playerColors.robe); draw(offX+2, pOffY+4, playerColors.robe); draw(offX+3, pOffY+4, playerColors.robe); draw(offX+4, pOffY+4, playerColors.robe); draw(offX+5, pOffY+4, playerColors.robe); draw(offX+6, pOffY+4, playerColors.robe);
+        draw(offX+2, pOffY+5, playerColors.robe); draw(offX+3, pOffY+5, playerColors.robe); draw(offX+4, pOffY+5, playerColors.robe); draw(offX+5, pOffY+5, playerColors.robe);
+        // Hat
+        draw(offX+2, pOffY+0, playerColors.hat); draw(offX+3, pOffY+0, playerColors.hat); draw(offX+4, pOffY+0, playerColors.hat);
+        draw(offX+1, pOffY+1, playerColors.hat); draw(offX+2, pOffY+1, playerColors.hat); draw(offX+3, pOffY+1, playerColors.hat); draw(offX+4, pOffY+1, playerColors.hat); draw(offX+5, pOffY+1, playerColors.hat);
+        // Face
+        draw(offX+3, pOffY+2, playerColors.skin); draw(offX+4, pOffY+2, playerColors.skin);
+    }
+
+    // Worrior (Red)
+    const wOffX = 41, wOffY = 1;
+    for(let i = 0; i < 2; i++) { // 2 animation frames
+        let offX = wOffX + i*10;
+        draw(offX+2, wOffY+1, '#ff4136'); draw(offX+3, wOffY+1, '#ff4136');
+        draw(offX+1, wOffY+2, '#ff4136'); draw(offX+2, wOffY+2, '#D00000'); draw(offX+3, wOffY+2, '#D00000'); draw(offX+4, wOffY+2, '#ff4136');
+        draw(offX+1, wOffY+3, '#ff4136'); draw(offX+2, wOffY+3, '#D00000'); draw(offX+3, wOffY+3, '#D00000'); draw(offX+4, wOffY+3, '#ff4136');
+        draw(offX+2, wOffY+4, '#ff4136'); draw(offX+3, wOffY+4, '#ff4136');
+        draw(offX+1, wOffY+5, '#ff4136'); draw(offX+4, wOffY+5, '#ff4136');
+        if (i===0) { draw(offX+1, wOffY+6, '#ff4136'); draw(offX+4, wOffY+6, '#ff4136'); }
+        else { draw(offX+2, wOffY+6, '#ff4136'); draw(offX+3, wOffY+6, '#ff4136'); }
+    }
+    
+    // And so on for other sprites...
+    // Burwor
+    const bOffX = 1, bOffY = 11;
+     for(let i = 0; i < 2; i++) { let offX = bOffX + i * 10;
+        draw(offX+2, bOffY+2, '#2ECC40'); draw(offX+3, bOffY+2, '#2ECC40');
+        draw(offX+1, bOffY+3, '#2ECC40'); draw(offX+2, bOffY+3, '#1E8E3E'); draw(offX+3, bOffY+3, '#1E8E3E'); draw(offX+4, bOffY+3, '#2ECC40');
+     }
+    // Garwor
+    const gOffX = 21, gOffY = 11;
+     for(let i = 0; i < 2; i++) { let offX = gOffX + i * 10;
+        draw(offX+2, gOffY+1, '#B10DC9'); draw(offX+1, gOffY+2, '#B10DC9'); draw(offX+3, gOffY+2, '#B10DC9');
+        draw(offX+1, gOffY+3, '#810099'); draw(offX+2, gOffY+3, '#B10DC9'); draw(offX+3, gOffY+3, '#810099');
+     }
+    // Wizard Boss
+    const zOffX = 41, zOffY = 11;
+    for(let i = 0; i < 2; i++) { let offX = zOffX + i * 10;
+        draw(offX+2, zOffY+1, '#FFDC00'); draw(offX+3, zOffY+1, '#FFDC00');
+        draw(offX+1, zOffY+2, '#FFDC00'); draw(offX+2, zOffY+2, '#FFBF00'); draw(offX+3, zOffY+2, '#FFBF00'); draw(offX+4, zOffY+2, '#FFDC00');
+    }
+
+    // Powerups
+    sCtx.font = "24px 'Courier New'";
+    sCtx.fillStyle = '#39CCCC'; sCtx.fillText('S', 1 * 10 * PIXEL, 26 * PIXEL);
+    sCtx.fillStyle = '#F012BE'; sCtx.fillText('R', 2 * 10 * PIXEL, 26 * PIXEL);
+    sCtx.fillStyle = '#FFDC00'; sCtx.fillText('K', 3 * 10 * PIXEL, 26 * PIXEL);
+    sCtx.fillStyle = '#FFDC00'; sCtx.fillText('E', 4 * 10 * PIXEL, 26 * PIXEL);
+}
+drawAllSprites();
+
+const spriteMap = {
+    player: (dir) => ({ sx: { down:0, up:40, left:80, right:120 }[dir] || 0, sy: 0 }),
+    worrior: (tick) => ({ sx: Math.floor(tick/20)%2 === 0 ? 160: 200, sy: 0 }),
+    burwor: (tick) => ({ sx: Math.floor(tick/20)%2 === 0 ? 0: 40, sy: 40 }),
+    garwor: (tick) => ({ sx: Math.floor(tick/20)%2 === 0 ? 80: 120, sy: 40 }),
+    wizard: (tick) => ({ sx: Math.floor(tick/20)%2 === 0 ? 160: 200, sy: 40 }),
+    speed: () => ({ sx: 0, sy: 100}),
+    rapid: () => ({ sx: 40, sy: 100}),
+    key: () => ({ sx: 80, sy: 100}),
+    exit: () => ({ sx: 120, sy: 100}),
+};
+
+
+function drawSprite(type, x, y, size, dir) {
+    const map = spriteMap[type](dir || state.tick);
+    ctx.imageSmoothingEnabled = false; // Preserve pixel art style
+    ctx.drawImage(spriteCanvas, map.sx, map.sy, 40, 40, x - size/2, y-size/2, size, size);
+}
+
+function drawEntity(e) {
+    if (!e) return;
+    if (e.type === 'player' && state.player.invincibleTimer > 0 && state.tick % 10 < 5) return;
+    drawSprite(e.type, e.x, e.y, e.size, e.type === 'player' ? state.player.dir : null);
+}
+
+function drawMaze() {
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+        if (state.maze[y][x] === 1 || state.maze[y][x] === 2) {
+            ctx.fillStyle = state.maze[y][x] === 1 ? '#202070' : '#303080';
+            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            // Brick texture
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 2;
+            for(let i=0; i<TILE_SIZE; i+=10) {
+                ctx.beginPath();
+                ctx.moveTo(x*TILE_SIZE + i, y*TILE_SIZE);
+                ctx.lineTo(x*TILE_SIZE + i, (y+1)*TILE_SIZE);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x*TILE_SIZE, y*TILE_SIZE + i);
+                ctx.lineTo((x+1)*TILE_SIZE, y*TILE_SIZE + i);
+                ctx.stroke();
+            }
         }
+    }
+}
 
-        function gameOver() {
-            const head = snake[0];
-            return (
-                head.x < 0 || head.x >= tileCount ||
-                head.y < 0 || head.y >= tileCount ||
-                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
-            );
-        }
 
-        function resetGame() {
-            snake = [{x: 10, y: 10}];
-            food = {x: 15, y: 15};
-            dx = 0;
-            dy = 0;
-            score = 0;
-            drawGame();
-        }
+function drawParticle(p) {
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+}
 
-        drawGame();
-    </script>
+function drawBullet(b) {
+    const grad = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, 6);
+    const color = b.ownerType === 'player' ? '#ffff00' : '#ff4136';
+    grad.addColorStop(0, 'white');
+    grad.addColorStop(0.4, color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// --- Game Flow & Actions ---
+function startGame() {
+    screens.start.style.display = 'none';
+    ui.container.style.display = 'flex';
+    canvas.style.display = 'block';
+    
+    initState(Date.now());
+    updateUI();
+    
+    gameRunning = true;
+    prevTime = performance.now();
+    requestAnimationFrame(gameLoop);
+}
+
+function pauseGame(paused) {
+    if (paused && state.status === 'playing') {
+        state.status = 'paused';
+        screens.pause.style.display = 'flex';
+        gameRunning = false;
+    } else if (!paused && state.status === 'paused') {
+        state.status = 'playing';
+        screens.pause.style.display = 'none';
+        gameRunning = true;
+        prevTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+function nextLevel() {
+    state.level++;
+    state.status = 'playing'; // Set status back to playing
+    state.maze = generateMaze(state.rng);
+    state.entities = [state.entities[0]]; // Keep player
+    state.bullets = []; state.powerups = [];
+    state.player.hasKey = false; state.secretKey.spawned = false; state.secretExit.active = false;
+    spawnPlayer();
+    spawnMonsters(state.level);
+    updateUI();
+}
+
+function playerHit() {
+    state.lives--;
+    createExplosion(state.entities[0].x, state.entities[0].y, '#00ffff');
+    updateUI();
+    if (state.lives <= 0) {
+        gameOver();
+    } else {
+        state.entities[0].x = TILE_SIZE * 1.5; state.entities[0].y = TILE_SIZE * 1.5;
+        state.player.invincibleTimer = 120;
+    }
+}
+
+function killMonster(index) {
+    const m = state.entities[index];
+    if (!m) return;
+    createExplosion(m.x, m.y, '#ff4136');
+    playSound('explosion');
+    state.score += m.type === 'wizard' ? 1000 : 100;
+    if (state.rng.float() < 0.15) {
+        state.powerups.push({ x: m.x, y: m.y, type: state.rng.float() > 0.5 ? 'speed' : 'rapid' });
+    }
+    state.entities[index] = undefined;
+    updateUI();
+}
+
+function gameOver() {
+    state.status = 'gameover';
+    gameRunning = false;
+    canvas.style.display = 'none';
+    ui.container.style.display = 'none';
+    ui.finalScore.textContent = `FINAL SCORE: ${state.score}`;
+    screens.gameOver.style.display = 'flex';
+}
+
+function shoot(owner, direction) {
+    let vx=0, vy=0;
+    if (typeof direction === 'string') { // Player
+        if (direction === 'up') vy = -8; else if (direction === 'down') vy = 8;
+        else if (direction === 'left') vx = -8; else if (direction === 'right') vx = 8;
+    } else { // Wizard
+        vx = direction.vx; vy = direction.vy;
+    }
+    state.bullets.push({x: owner.x, y: owner.y, vx, vy, ownerId: owner.id, ownerType: owner.type, ttl: 100});
+    playSound('shoot');
+}
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 20; i++) {
+        state.particles.push({
+            x, y, color, alpha: 1,
+            vx: (state.rng.float() - 0.5) * 4,
+            vy: (state.rng.float() - 0.5) * 4
+        });
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    if (type === 'shoot') {
+        osc.type = 'square'; osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    } else if (type === 'explosion') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+    } else { // powerup
+        osc.type = 'sine'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+    }
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+}
+
+// --- Helpers ---
+function isWalkable(x, y, size) {
+    const margin = size / 2;
+    const gx1 = Math.floor((x - margin) / TILE_SIZE), gy1 = Math.floor((y - margin) / TILE_SIZE);
+    const gx2 = Math.floor((x + margin) / TILE_SIZE), gy2 = Math.floor((y + margin) / TILE_SIZE);
+    return state.maze[gy1]?.[gx1] !== 1 && state.maze[gy1]?.[gx2] !== 1 &&
+           state.maze[gy2]?.[gx1] !== 1 && state.maze[gy2]?.[gx2] !== 1;
+}
+
+function getMonsters() {
+    return state.entities.filter(e => e && e.type !== 'player');
+}
+
+// --- UI & Event Listeners ---
+function updateUI() {
+    ui.score.textContent = `SCORE: ${state.score}`;
+    ui.level.textContent = `LEVEL: ${state.level}`;
+    ui.lives.innerHTML = `LIVES: ${'❤'.repeat(state.lives)}`;
+}
+
+buttons.start.addEventListener('click', startGame);
+buttons.playAgain.addEventListener('click', () => {
+    screens.gameOver.style.display = 'none';
+    startGame();
+});
+buttons.resume.addEventListener('click', () => pauseGame(false));
+buttons.exit.addEventListener('click', () => {
+    pauseGame(false);
+    gameRunning = false;
+    canvas.style.display = 'none';
+    ui.container.style.display = 'none';
+    screens.pause.style.display = 'none';
+    screens.start.style.display = 'flex';
+});
+
+document.addEventListener('keydown', e => {
+    initAudio();
+    if (e.key === 'ArrowUp') input.up = true;
+    if (e.key === 'ArrowDown') input.down = true;
+    if (e.key === 'ArrowLeft') input.left = true;
+    if (e.key === 'ArrowRight') input.right = true;
+    if (e.key === ' ') input.shoot = true;
+    if (e.key === 'Escape') pauseGame(state.status === 'playing');
+});
+document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowUp') input.up = false;
+    if (e.key === 'ArrowDown') input.down = false;
+    if (e.key === 'ArrowLeft') input.left = false;
+    if (e.key === 'ArrowRight') input.right = false;
+    if (e.key === ' ') input.shoot = false;
+});
+
+window.addEventListener('visibilitychange', () => {
+    if (document.hidden) pauseGame(true);
+});
+
+});
+</script>
 </body>
 </html>
+
