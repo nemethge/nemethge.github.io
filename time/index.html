@@ -3,29 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timer & Stopwatch</title>
+    <title>Timer &amp; Stopwatch</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Timer & Stopwatch</h1>
-        <div class="tabs">
-            <button id="timer-tab" class="tab active">Timer</button>
-            <button id="stopwatch-tab" class="tab">Stopwatch</button>
+        <h1>Timer &amp; Stopwatch</h1>
+
+        <div class="tabs" role="tablist" aria-label="Modes">
+            <button id="timer-tab" class="tab active" role="tab" aria-selected="true" aria-controls="timer" type="button">Timer</button>
+            <button id="stopwatch-tab" class="tab" role="tab" aria-selected="false" aria-controls="stopwatch" type="button">Stopwatch</button>
         </div>
-        <div id="timer" class="content active">
-            <div class="display" id="timer-display">00:00:00</div>
-            <input type="number" id="timer-hours" placeholder="HH" min="0">
-            <input type="number" id="timer-minutes" placeholder="MM" min="0" max="59">
-            <input type="number" id="timer-seconds" placeholder="SS" min="0" max="59">
-            <button id="start-timer">Start Timer</button>
-            <button id="reset-timer">Reset Timer</button>
-        </div>
-        <div id="stopwatch" class="content">
-            <div class="display" id="stopwatch-display">00:00:00</div>
-            <button id="start-stopwatch">Start</button>
-            <button id="reset-stopwatch">Reset</button>
-        </div>
+
+        <section id="timer" class="content active" role="tabpanel" aria-labelledby="timer-tab">
+            <div class="display" id="timer-display" role="timer" aria-live="off">00:00:00</div>
+
+            <div class="inputs">
+                <label class="field">
+                    <span class="field-label">Hours</span>
+                    <input type="number" id="timer-hours" placeholder="HH" min="0" max="99" inputmode="numeric">
+                </label>
+                <label class="field">
+                    <span class="field-label">Minutes</span>
+                    <input type="number" id="timer-minutes" placeholder="MM" min="0" max="59" inputmode="numeric">
+                </label>
+                <label class="field">
+                    <span class="field-label">Seconds</span>
+                    <input type="number" id="timer-seconds" placeholder="SS" min="0" max="59" inputmode="numeric">
+                </label>
+            </div>
+
+            <p class="error" id="timer-error" role="alert" hidden></p>
+
+            <button id="start-timer" type="button">Start timer</button>
+            <button id="reset-timer" type="button">Reset timer</button>
+        </section>
+
+        <section id="stopwatch" class="content" role="tabpanel" aria-labelledby="stopwatch-tab">
+            <div class="display" id="stopwatch-display" aria-live="off">00:00:00.00</div>
+            <button id="start-stopwatch" type="button">Start</button>
+            <button id="reset-stopwatch" type="button">Reset</button>
+        </section>
     </div>
     <script src="scripts.js"></script>
 </body>
